@@ -21,6 +21,9 @@ def standardize(df):
 
     df["county"] = df["county"].str.strip().str.lower()
 
+    # Blank eircodes become proper missing values so dropna() catches them
+    df["eircode"] = df["eircode"].str.strip().replace("", np.nan)
+
     df["price"] = pd.to_numeric(
         df["price"]
         .str.replace("€", "", regex=False)
@@ -28,7 +31,16 @@ def standardize(df):
         .astype(float)
     )
 
-    df.columns = df.columns.str.lower().str.strip()
+    # --- Outlier Handling (Percentile Trimming) ---
+    lower_percentile = df["price"].quantile(0.01)  # Bottom 1%
+    upper_percentile = df["price"].quantile(0.99)  # Top 1%
+
+    df = df[
+        (df["not_full_market_price"].str.strip().str.title() == "No") &
+        (df["price"] >= lower_percentile) &
+        (df["price"] <= upper_percentile)
+    ]
+
     df = df.drop_duplicates()
 
     return df
